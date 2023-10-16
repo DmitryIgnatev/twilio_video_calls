@@ -1,57 +1,65 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:twilio_video_calls/conference/conference_cubit.dart';
+import 'package:flutter_mobx/flutter_mobx.dart';
+import 'package:twilio_video_calls/di.dart';
+import 'package:twilio_video_calls/states/conference_state.dart';
 
-class ConferencePage extends StatefulWidget {
-  const ConferencePage({super.key});
+class ConferencePage extends StatelessWidget {
+  ConferencePage({super.key});
 
-  @override
-  State<ConferencePage> createState() => _ConferencePageState();
-}
-
-class _ConferencePageState extends State<ConferencePage> {
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-  }
+  final conferenceState = serviceLocator<ConferenceState>();
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
     return Scaffold(
       backgroundColor: Colors.black,
-      body: BlocConsumer<ConferenceCubit, ConferenceState>(
-          listener: (context, state) {},
-          builder: (context, state) {
-            if (state is ConferenceInitial) {
-              return showProgress();
-            }
-            if (state is ConferenceLoaded) {
-              return Stack(
-                children: <Widget>[
-                  _buildParticipants(context),
-                  Positioned(
-                      bottom: 60,
-                      child: IconButton(
-                        color: Colors.red,
-                        icon: const Icon(
-                          Icons.call_end_sharp,
-                          color: Colors.white,
+      body: Observer(builder: (_) {
+        if (conferenceState.mode == ConferenceMode.conferenceInitial) {
+          debugPrint("\x1B[33mSTATE IS INITIAL\x1B[0m");
+          return showProgress();
+        }
+        if (conferenceState.mode == ConferenceMode.conferenceLoaded) {
+          debugPrint("\x1B[33mSTATE IS LOADED\x1B[0m");
+          return Stack(
+            children: <Widget>[
+              const BuildParticipants(),
+              Positioned(
+                  bottom: 60,
+                  child: SizedBox(
+                    width: width,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.call_end_sharp,
+                            color: Colors.white,
+                          ),
+                          onPressed: () async {
+                            // context.read<ConferenceCubit>().disconnect();
+                            conferenceState.disconnect();
+                            Navigator.of(context).pop();
+                          },
                         ),
-                        onPressed: () async {
-                          context.read<ConferenceCubit>().disconnect();
-                          Navigator.of(context).pop();
-                        },
-                      ))
-                ],
-              );
-            }
-            return Container();
-          }),
+                        IconButton(
+                          icon: Icon(
+                            conferenceState.isMicrophoneOn
+                                ? Icons.mic
+                                : Icons.mic_off,
+                            color: Colors.white,
+                          ),
+                          onPressed: () {
+                            conferenceState.changeMicrophoneStatus();
+                          },
+                        ),
+                      ],
+                    ),
+                  ))
+            ],
+          );
+        }
+        return Container();
+      }),
     );
   }
 
@@ -71,26 +79,25 @@ class _ConferencePageState extends State<ConferencePage> {
       ],
     );
   }
+}
 
-  Widget _buildParticipants(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final children = <Widget>[];
-    _buildOverlayLayout(context, size, children);
-    return Stack(children: children);
-  }
+class BuildParticipants extends StatelessWidget {
+  const BuildParticipants({super.key});
 
-  void _buildOverlayLayout(
-      BuildContext context, Size size, List<Widget> children) {
-    final conferenceRoom = context.read<ConferenceCubit>();
-    final participants = conferenceRoom.participants;
-    children.add(GridView.builder(
-        gridDelegate:
-            const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 1),
-        itemCount: participants.length,
-        itemBuilder: (BuildContext context, int index) {
-          return Card(
-            child: participants[index],
-          );
-        }));
+  @override
+  Widget build(BuildContext context) {
+    final conferenceState = serviceLocator<ConferenceState>();
+    return Observer(builder: (_) {
+      return Stack(children: [
+        GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 1),
+            itemCount: conferenceState.participantsList.length,
+            itemBuilder: (BuildContext context, int index) {
+              return Card(
+                child: conferenceState.participantsList[index],
+              );
+            })
+      ]);
+    });
   }
 }

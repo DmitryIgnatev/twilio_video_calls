@@ -1,11 +1,13 @@
-import 'package:twilio_video_calls/conference/conference_cubit.dart';
 import 'package:twilio_video_calls/conference/conference_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:twilio_video_calls/di.dart';
 import 'package:twilio_video_calls/room/join_room_cubit.dart';
 import 'package:twilio_video_calls/shared/twilio_service.dart';
+import 'package:twilio_video_calls/states/conference_state.dart';
 
 class JoinRoomPage extends StatelessWidget {
+  final conferenceState = serviceLocator<ConferenceState>();
   final TextEditingController _nameController = TextEditingController();
 
   JoinRoomPage({super.key});
@@ -23,16 +25,13 @@ class JoinRoomPage extends StatelessWidget {
                 await Navigator.of(context).push(
                   MaterialPageRoute<ConferencePage>(
                       fullscreenDialog: true,
-                      builder: (BuildContext context) =>
-                          // ConferencePage(roomModel: bloc),
-                          BlocProvider(
-                            create: (BuildContext context) => ConferenceCubit(
-                              identity: state.identity,
-                              token: state.token,
-                              name: state.name,
-                            ),
-                            child: const ConferencePage(),
-                          )),
+                      builder: (BuildContext context) {
+                        conferenceState.name = state.name;
+                        conferenceState.identity = state.identity;
+                        conferenceState.token = state.token;
+                        conferenceState.connect();
+                        return ConferencePage();
+                      }),
                 );
               }
             }, builder: (context, state) {

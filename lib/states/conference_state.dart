@@ -1,45 +1,64 @@
+import 'package:injectable/injectable.dart';
+import 'package:mobx/mobx.dart';
 import 'dart:async';
-import 'package:bloc/bloc.dart';
 import 'package:twilio_video_calls/conference/participant_widget.dart';
 import 'package:collection/collection.dart' show IterableExtension;
 import 'package:flutter/material.dart';
 import 'package:twilio_programmable_video/twilio_programmable_video.dart';
 import 'package:uuid/uuid.dart';
-import 'package:equatable/equatable.dart';
+part 'conference_state.g.dart'; //This will automatically generated after: flutter pub run build_runner build
 
-abstract class ConferenceState extends Equatable {
-  const ConferenceState();
+@singleton
+class ConferenceState = ConferenceStateBase with _$ConferenceState;
 
-  @override
-  List<Object> get props => [];
+enum ConferenceMode {
+  /// Изначальное состояние
+  conferenceInitial,
+
+  /// Состояние, когда загружена конференция
+  conferenceLoaded,
 }
 
-class ConferenceInitial extends ConferenceState {}
+abstract class ConferenceStateBase with Store {
+  @observable
+  String name = "";
+  @observable
+  String token = "";
+  @observable
+  String identity = "";
 
-class ConferenceLoaded extends ConferenceState {}
+  @observable
+  ObservableList<ParticipantWidget> participantsList =
+      ObservableList<ParticipantWidget>();
 
-class ConferenceCubit extends Cubit<ConferenceState> {
-  final String name;
-  final String token;
-  final String identity;
-  final List<ParticipantWidget> _participants = [];
-  late String trackId;
+  @observable
+  VideoCapturer? _cameraCapturer;
+  @observable
+  Room? _room;
+  @observable
+  String? trackId;
 
-  late Room _room;
-  late VideoCapturer _cameraCapturer;
-  late List<StreamSubscription> streamSubscriptions = [];
+  @observable
+  List<StreamSubscription> streamSubscriptions = [];
 
-  ConferenceCubit({
-    required this.name,
-    required this.token,
-    required this.identity,
-  }) : super(ConferenceInitial()) {
-    connect();
+  @observable
+  ConferenceMode? mode;
+
+  @observable
+  bool isMicrophoneOn = true;
+
+  @action
+  void setMode(ConferenceMode value) {
+    mode = value;
   }
-  List<ParticipantWidget> get participants {
-    return [..._participants];
+
+  @action
+  void changeMicrophoneStatus() {
+    debugPrint('[ APPDEBUG ] isMicropfoneOn = $isMicrophoneOn');
+    isMicrophoneOn = !isMicrophoneOn;
   }
 
+  @action
   ParticipantWidget _buildParticipant({
     required Widget child,
     required String? id,
@@ -50,13 +69,15 @@ class ConferenceCubit extends Cubit<ConferenceState> {
     );
   }
 
+  @action
   connect() async {
+    setMode(ConferenceMode.conferenceInitial);
     debugPrint('[ APPDEBUG ] ConferenceRoom.connect()');
     try {
       await TwilioProgrammableVideo.setAudioSettings(
           speakerphoneEnabled: true, bluetoothPreferred: false);
 
-      final sources = await CameraSource.getSources();
+      var sources = await CameraSource.getSources();
       _cameraCapturer = CameraCapturer(
         sources.firstWhere((source) => source.isFrontFacing),
       );
@@ -66,13 +87,13 @@ class ConferenceCubit extends Cubit<ConferenceState> {
         token,
         roomName: name,
         preferredAudioCodecs: [OpusCodec()],
-        audioTracks: [LocalAudioTrack(true, 'audio_track-$trackId')],
+        audioTracks: [LocalAudioTrack(isMicrophoneOn, 'audio_track-$trackId')],
         dataTracks: [
           LocalDataTrack(
             DataTrackOptions(name: 'data_track-$trackId'),
           )
         ],
-        videoTracks: [LocalVideoTrack(true, _cameraCapturer)],
+        videoTracks: [LocalVideoTrack(true, _cameraCapturer!)],
         enableNetworkQuality: true,
         networkQualityConfiguration: NetworkQualityConfiguration(
           remote: NetworkQualityVerbosity.NETWORK_QUALITY_VERBOSITY_MINIMAL,
@@ -81,40 +102,38 @@ class ConferenceCubit extends Cubit<ConferenceState> {
       );
 
       _room = await TwilioProgrammableVideo.connect(connectOptions);
-
-      streamSubscriptions.add(_room.onConnected.listen(_onConnected));
-      streamSubscriptions.add(_room.onDisconnected.listen(_onDisconnected));
-      streamSubscriptions.add(_room.onReconnecting.listen(_onReconnecting));
-      streamSubscriptions.add(_room.onConnectFailure.listen(_onConnectFailure));
+      if (_room != null) {
+        streamSubscriptions.add(_room!.onConnected.listen(_onConnected));
+        streamSubscriptions.add(_room!.onDisconnected.listen(_onDisconnected));
+        streamSubscriptions.add(_room!.onReconnecting.listen(_onReconnecting));
+        streamSubscriptions
+            .add(_room!.onConnectFailure.listen(_onConnectFailure));
+      }
     } catch (err) {
       debugPrint('[ APPDEBUG ] $err');
       rethrow;
     }
   }
 
+  @action
   Future<void> disconnect() async {
     debugPrint('[ APPDEBUG ] ConferenceRoom.disconnect()');
-    await _room.disconnect();
+    if (_room != null) {
+      await _room!.disconnect();
+    }
   }
 
-  void _onDisconnected(RoomDisconnectedEvent event) {
-    debugPrint('[ APPDEBUG ] ConferenceRoom._onDisconnected');
-  }
-
-  void _onReconnecting(RoomReconnectingEvent room) {
-    debugPrint('[ APPDEBUG ] ConferenceRoom._onReconnecting');
-  }
-
+  @action
   void _onConnected(Room room) {
     debugPrint(
         '[ APPDEBUG ] ConferenceRoom._onConnected => state: ${room.state}');
 
     // When connected for the first time, add remote participant listeners
     streamSubscriptions
-        .add(_room.onParticipantConnected.listen(_onParticipantConnected));
+        .add(_room!.onParticipantConnected.listen(_onParticipantConnected));
     streamSubscriptions.add(
-        _room.onParticipantDisconnected.listen(_onParticipantDisconnected));
-    final localParticipant = room.localParticipant;
+        _room!.onParticipantDisconnected.listen(_onParticipantDisconnected));
+    var localParticipant = room.localParticipant;
     if (localParticipant == null) {
       debugPrint(
           '[ APPDEBUG ] ConferenceRoom._onConnected => localParticipant is null');
@@ -122,12 +141,12 @@ class ConferenceCubit extends Cubit<ConferenceState> {
     }
 
     // Only add ourselves when connected for the first time too.
-    _participants.add(_buildParticipant(
+    participantsList.add(_buildParticipant(
         child: localParticipant.localVideoTracks[0].localVideoTrack.widget(),
         id: identity));
 
     for (final remoteParticipant in room.remoteParticipants) {
-      var participant = _participants.firstWhereOrNull(
+      var participant = participantsList.firstWhereOrNull(
           (participant) => participant.id == remoteParticipant.sid);
       if (participant == null) {
         debugPrint(
@@ -138,11 +157,7 @@ class ConferenceCubit extends Cubit<ConferenceState> {
     reload();
   }
 
-  void _onConnectFailure(RoomConnectFailureEvent event) {
-    debugPrint(
-        '[ APPDEBUG ] ConferenceRoom._onConnectFailure: ${event.exception}');
-  }
-
+  @action
   void _onParticipantConnected(RoomParticipantConnectedEvent event) {
     debugPrint(
         '[ APPDEBUG ] ConferenceRoom._onParticipantConnected, ${event.remoteParticipant.sid}');
@@ -150,14 +165,16 @@ class ConferenceCubit extends Cubit<ConferenceState> {
     reload();
   }
 
+  @action
   void _onParticipantDisconnected(RoomParticipantDisconnectedEvent event) {
     debugPrint(
         '[ APPDEBUG ] ConferenceRoom._onParticipantDisconnected: ${event.remoteParticipant.sid}');
-    _participants.removeWhere(
+    participantsList.removeWhere(
         (ParticipantWidget p) => p.id == event.remoteParticipant.sid);
     reload();
   }
 
+  @action
   void _addRemoteParticipantListeners(RemoteParticipant remoteParticipant) {
     streamSubscriptions.add(remoteParticipant.onVideoTrackSubscribed
         .listen(_addOrUpdateParticipant));
@@ -165,10 +182,11 @@ class ConferenceCubit extends Cubit<ConferenceState> {
         .listen(_addOrUpdateParticipant));
   }
 
+  @action
   void _addOrUpdateParticipant(RemoteParticipantEvent event) {
     debugPrint(
         '[ APPDEBUG ] ConferenceRoom._addOrUpdateParticipant(), ${event.remoteParticipant.sid}');
-    final participant = _participants.firstWhereOrNull(
+    var participant = participantsList.firstWhereOrNull(
       (ParticipantWidget participant) =>
           participant.id == event.remoteParticipant.sid,
     );
@@ -180,7 +198,7 @@ class ConferenceCubit extends Cubit<ConferenceState> {
       if (event is RemoteVideoTrackSubscriptionEvent) {
         debugPrint(
             '[ APPDEBUG ] New participant, adding: ${event.remoteParticipant.sid}');
-        _participants.insert(
+        participantsList.insert(
           0,
           _buildParticipant(
             child: event.remoteVideoTrack.widget(),
@@ -192,8 +210,22 @@ class ConferenceCubit extends Cubit<ConferenceState> {
     }
   }
 
+  @action
   reload() {
-    emit(ConferenceInitial());
-    emit(ConferenceLoaded());
+    setMode(ConferenceMode.conferenceInitial);
+    setMode(ConferenceMode.conferenceLoaded);
+  }
+
+  void _onConnectFailure(RoomConnectFailureEvent event) {
+    debugPrint(
+        '[ APPDEBUG ] ConferenceRoom._onConnectFailure: ${event.exception}');
+  }
+
+  void _onDisconnected(RoomDisconnectedEvent event) {
+    debugPrint('[ APPDEBUG ] ConferenceRoom._onDisconnected');
+  }
+
+  void _onReconnecting(RoomReconnectingEvent room) {
+    debugPrint('[ APPDEBUG ] ConferenceRoom._onReconnecting');
   }
 }

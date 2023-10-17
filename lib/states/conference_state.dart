@@ -1,12 +1,12 @@
 import 'package:injectable/injectable.dart';
 import 'package:mobx/mobx.dart';
 import 'dart:async';
-import 'package:twilio_video_calls/conference/participant_widget.dart';
 import 'package:collection/collection.dart' show IterableExtension;
 import 'package:flutter/material.dart';
 import 'package:twilio_programmable_video/twilio_programmable_video.dart';
 import 'package:twilio_video_calls/models/participant_buffer.dart';
-import 'package:twilio_video_calls/widgets/noise_box.dart';
+import 'package:twilio_video_calls/models/participant_widget.dart';
+import 'package:twilio_video_calls/UI/components/noise_box.dart';
 import 'package:uuid/uuid.dart';
 part 'conference_state.g.dart'; //This will automatically generated after: flutter pub run build_runner build
 
@@ -134,7 +134,9 @@ abstract class ConferenceStateBase with Store {
   Future<void> disconnect() async {
     debugPrint('[ APPDEBUG ] ConferenceRoom.disconnect()');
     if (_room != null) {
+      await _room!.dispose();
       await _room!.disconnect();
+      await TwilioProgrammableVideo.disableAudioSettings();
       _disposeStreamsAndSubscriptions();
     }
   }

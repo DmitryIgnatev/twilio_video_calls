@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
-import 'package:twilio_video_calls/di.dart';
+import 'package:twilio_video_calls/utils/di.dart';
 import 'package:twilio_video_calls/states/conference_state.dart';
 
 class ConferencePage extends StatelessWidget {
@@ -105,7 +105,7 @@ class BuildParticipants extends StatelessWidget {
             itemBuilder: (BuildContext context, int index) {
               return Stack(
                 children: [
-                  conferenceState.participantsList[index],
+                  conferenceState.participantsList[index].child,
                   Center(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,

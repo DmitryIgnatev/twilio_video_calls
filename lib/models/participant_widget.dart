@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class ParticipantWidget extends StatelessWidget {
+class ParticipantWidget {
   final Widget child;
   final String? id;
   final bool audioEnabled;
@@ -8,7 +8,6 @@ class ParticipantWidget extends StatelessWidget {
   final bool isRemote;
 
   const ParticipantWidget({
-    super.key,
     required this.child,
     required this.id,
     required this.audioEnabled,
@@ -30,10 +29,5 @@ class ParticipantWidget extends StatelessWidget {
       isRemote: isRemote,
       child: child ?? this.child,
     );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return child;
   }
 }

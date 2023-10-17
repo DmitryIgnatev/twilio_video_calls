@@ -12,8 +12,8 @@
 import 'package:get_it/get_it.dart' as _i1;
 import 'package:injectable/injectable.dart' as _i2;
 
-import 'states/conference_state.dart' as _i3;
-import 'states/join_room_state.dart' as _i4;
+import '../states/conference_state.dart' as _i3;
+import '../states/join_room_state.dart' as _i4;
 
 // initializes the registration of main-scope dependencies inside of GetIt
 _i1.GetIt init(

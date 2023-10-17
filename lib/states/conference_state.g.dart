@@ -194,6 +194,15 @@ mixin _$ConferenceState on ConferenceStateBase, Store {
         .run(() => super.toggleVideoEnabled());
   }
 
+  late final _$toggleAudioEnabledAsyncAction =
+      AsyncAction('ConferenceStateBase.toggleAudioEnabled', context: context);
+
+  @override
+  Future<void> toggleAudioEnabled() {
+    return _$toggleAudioEnabledAsyncAction
+        .run(() => super.toggleAudioEnabled());
+  }
+
   late final _$ConferenceStateBaseActionController =
       ActionController(name: 'ConferenceStateBase', context: context);
 

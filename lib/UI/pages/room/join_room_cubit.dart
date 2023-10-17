@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:twilio_video_calls/shared/twilio_service.dart';
+import 'package:twilio_video_calls/services/twilio_service.dart';
 
 abstract class RoomState extends Equatable {
   const RoomState();

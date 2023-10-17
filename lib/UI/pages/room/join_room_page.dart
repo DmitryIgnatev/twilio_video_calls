@@ -1,9 +1,9 @@
-import 'package:twilio_video_calls/conference/conference_page.dart';
+import 'package:twilio_video_calls/UI/pages/conference/conference_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:twilio_video_calls/di.dart';
-import 'package:twilio_video_calls/room/join_room_cubit.dart';
-import 'package:twilio_video_calls/shared/twilio_service.dart';
+import 'package:twilio_video_calls/utils/di.dart';
+import 'package:twilio_video_calls/UI/pages/room/join_room_cubit.dart';
+import 'package:twilio_video_calls/services/twilio_service.dart';
 import 'package:twilio_video_calls/states/conference_state.dart';
 
 class JoinRoomPage extends StatelessWidget {

@@ -36,7 +36,6 @@ class ConferencePage extends StatelessWidget {
                             color: Colors.white,
                           ),
                           onPressed: () async {
-                            // context.read<ConferenceCubit>().disconnect();
                             conferenceState.disconnect();
                             Navigator.of(context).pop();
                           },
@@ -49,7 +48,17 @@ class ConferencePage extends StatelessWidget {
                             color: Colors.white,
                           ),
                           onPressed: () {
+                            conferenceState.toggleAudioEnabled();
                             conferenceState.changeMicrophoneStatus();
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.video_camera_front,
+                            color: Colors.white,
+                          ),
+                          onPressed: () async {
+                            conferenceState.toggleVideoEnabled();
                           },
                         ),
                       ],
@@ -90,11 +99,45 @@ class BuildParticipants extends StatelessWidget {
     return Observer(builder: (_) {
       return Stack(children: [
         GridView.builder(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 1),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 1),
             itemCount: conferenceState.participantsList.length,
             itemBuilder: (BuildContext context, int index) {
-              return Card(
-                child: conferenceState.participantsList[index],
+              return Stack(
+                children: [
+                  conferenceState.participantsList[index],
+                  Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (!conferenceState
+                            .participantsList[index].videoEnabled)
+                          const CircleAvatar(
+                            maxRadius: 40,
+                            backgroundColor: Colors.transparent,
+                            child: FittedBox(
+                              child: Icon(
+                                Icons.videocam_off,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        if (!conferenceState
+                            .participantsList[index].audioEnabled)
+                          const CircleAvatar(
+                            maxRadius: 40,
+                            backgroundColor: Colors.transparent,
+                            child: FittedBox(
+                              child: Icon(
+                                Icons.mic_off,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
               );
             })
       ]);

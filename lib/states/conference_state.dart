@@ -5,6 +5,8 @@ import 'package:twilio_video_calls/conference/participant_widget.dart';
 import 'package:collection/collection.dart' show IterableExtension;
 import 'package:flutter/material.dart';
 import 'package:twilio_programmable_video/twilio_programmable_video.dart';
+import 'package:twilio_video_calls/models/participant_buffer.dart';
+import 'package:twilio_video_calls/widgets/noise_box.dart';
 import 'package:uuid/uuid.dart';
 part 'conference_state.g.dart'; //This will automatically generated after: flutter pub run build_runner build
 
@@ -47,6 +49,13 @@ abstract class ConferenceStateBase with Store {
   @observable
   bool isMicrophoneOn = true;
 
+  final StreamController<bool> _onVideoEnabledStreamController =
+      StreamController<bool>.broadcast();
+  final StreamController<bool> _onAudioEnabledStreamController =
+      StreamController<bool>.broadcast();
+
+  final List<ParticipantBuffer> _participantBuffer = [];
+
   @action
   void setMode(ConferenceMode value) {
     mode = value;
@@ -62,9 +71,15 @@ abstract class ConferenceStateBase with Store {
   ParticipantWidget _buildParticipant({
     required Widget child,
     required String? id,
+    required bool audioEnabled,
+    required bool videoEnabled,
+    RemoteParticipant? remoteParticipant,
   }) {
     return ParticipantWidget(
       id: id,
+      audioEnabled: audioEnabled,
+      videoEnabled: videoEnabled,
+      isRemote: remoteParticipant != null,
       child: child,
     );
   }
@@ -120,6 +135,7 @@ abstract class ConferenceStateBase with Store {
     debugPrint('[ APPDEBUG ] ConferenceRoom.disconnect()');
     if (_room != null) {
       await _room!.disconnect();
+      _disposeStreamsAndSubscriptions();
     }
   }
 
@@ -142,8 +158,14 @@ abstract class ConferenceStateBase with Store {
 
     // Only add ourselves when connected for the first time too.
     participantsList.add(_buildParticipant(
-        child: localParticipant.localVideoTracks[0].localVideoTrack.widget(),
-        id: identity));
+      child: (localParticipant.localVideoTracks.isNotEmpty)
+          ? localParticipant.localVideoTracks[0].localVideoTrack.widget()
+          : const NoiseBox(),
+      id: identity,
+      audioEnabled: true,
+      videoEnabled:
+          (localParticipant.localVideoTracks.isNotEmpty) ? true : false,
+    ));
 
     for (final remoteParticipant in room.remoteParticipants) {
       var participant = participantsList.firstWhereOrNull(
@@ -176,6 +198,16 @@ abstract class ConferenceStateBase with Store {
 
   @action
   void _addRemoteParticipantListeners(RemoteParticipant remoteParticipant) {
+    streamSubscriptions.add(
+        remoteParticipant.onAudioTrackDisabled.listen(_onAudioTrackDisabled));
+    streamSubscriptions.add(
+        remoteParticipant.onAudioTrackEnabled.listen(_onAudioTrackEnabled));
+
+    streamSubscriptions.add(
+        remoteParticipant.onVideoTrackDisabled.listen(_onVideoTrackDisabled));
+    streamSubscriptions.add(
+        remoteParticipant.onVideoTrackEnabled.listen(_onVideoTrackEnabled));
+
     streamSubscriptions.add(remoteParticipant.onVideoTrackSubscribed
         .listen(_addOrUpdateParticipant));
     streamSubscriptions.add(remoteParticipant.onAudioTrackSubscribed
@@ -194,7 +226,31 @@ abstract class ConferenceStateBase with Store {
     if (participant != null) {
       debugPrint(
           '[ APPDEBUG ] Participant found: ${participant.id}, updating A/V enabled values');
+      if (event is RemoteVideoTrackEvent) {
+        _setRemoteVideoEnabled(event);
+      } else if (event is RemoteAudioTrackEvent) {
+        _setRemoteAudioEnabled(event);
+      }
     } else {
+      final bufferedParticipant = _participantBuffer.firstWhereOrNull(
+        (ParticipantBuffer participant) =>
+            participant.id == event.remoteParticipant.sid,
+      );
+      if (bufferedParticipant != null) {
+        _participantBuffer.remove(bufferedParticipant);
+      } else if (event is RemoteAudioTrackEvent) {
+        debugPrint(
+            'Audio subscription came first, waiting for the video subscription...');
+        _participantBuffer.add(
+          ParticipantBuffer(
+            id: event.remoteParticipant.sid,
+            audioEnabled:
+                event.remoteAudioTrackPublication.remoteAudioTrack?.isEnabled ??
+                    true,
+          ),
+        );
+        return;
+      }
       if (event is RemoteVideoTrackSubscriptionEvent) {
         debugPrint(
             '[ APPDEBUG ] New participant, adding: ${event.remoteParticipant.sid}');
@@ -203,6 +259,11 @@ abstract class ConferenceStateBase with Store {
           _buildParticipant(
             child: event.remoteVideoTrack.widget(),
             id: event.remoteParticipant.sid,
+            remoteParticipant: event.remoteParticipant,
+            audioEnabled: bufferedParticipant?.audioEnabled ?? true,
+            videoEnabled:
+                event.remoteVideoTrackPublication.remoteVideoTrack?.isEnabled ??
+                    true,
           ),
         );
         reload();
@@ -211,9 +272,107 @@ abstract class ConferenceStateBase with Store {
   }
 
   @action
+  Future<void> toggleVideoEnabled() async {
+    final tracks = _room!.localParticipant?.localVideoTracks ?? [];
+    final localVideoTrack = tracks.isEmpty ? null : tracks[0].localVideoTrack;
+    if (localVideoTrack == null) {
+      debugPrint(
+          'ConferenceRoom.toggleVideoEnabled() => Track is not available yet!');
+      return;
+    }
+    await localVideoTrack.enable(!localVideoTrack.isEnabled);
+
+    var index = participantsList
+        .indexWhere((ParticipantWidget participant) => !participant.isRemote);
+    if (index < 0) {
+      return;
+    }
+    participantsList[index] = participantsList[index]
+        .copyWith(videoEnabled: localVideoTrack.isEnabled);
+    debugPrint(
+        'ConferenceRoom.toggleVideoEnabled() => ${localVideoTrack.isEnabled}');
+    _onVideoEnabledStreamController.add(localVideoTrack.isEnabled);
+  }
+
+  @action
+  Future<void> toggleAudioEnabled() async {
+    final tracks = _room!.localParticipant?.localAudioTracks ?? [];
+    final localAudioTrack = tracks.isEmpty ? null : tracks[0].localAudioTrack;
+    if (localAudioTrack == null) {
+      debugPrint(
+          'ConferenceRoom.toggleAudioEnabled() => Track is not available yet!');
+      return;
+    }
+    await localAudioTrack.enable(!localAudioTrack.isEnabled);
+
+    var index = participantsList
+        .indexWhere((ParticipantWidget participant) => !participant.isRemote);
+    if (index < 0) {
+      return;
+    }
+    participantsList[index] = participantsList[index]
+        .copyWith(audioEnabled: localAudioTrack.isEnabled);
+    debugPrint(
+        'ConferenceRoom.toggleAudioEnabled() => ${localAudioTrack.isEnabled}');
+    _onAudioEnabledStreamController.add(localAudioTrack.isEnabled);
+  }
+
+  void _setRemoteAudioEnabled(RemoteAudioTrackEvent event) {
+    var index = participantsList.indexWhere((ParticipantWidget participant) =>
+        participant.id == event.remoteParticipant.sid);
+    if (index < 0) {
+      return;
+    }
+    participantsList[index] = participantsList[index].copyWith(
+        audioEnabled: event.remoteAudioTrackPublication.isTrackEnabled);
+  }
+
+  void _setRemoteVideoEnabled(RemoteVideoTrackEvent event) {
+    var index = participantsList.indexWhere((ParticipantWidget participant) =>
+        participant.id == event.remoteParticipant.sid);
+    if (index < 0) {
+      return;
+    }
+    participantsList[index] = participantsList[index].copyWith(
+        videoEnabled: event.remoteVideoTrackPublication.isTrackEnabled);
+  }
+
+  @action
   reload() {
     setMode(ConferenceMode.conferenceInitial);
     setMode(ConferenceMode.conferenceLoaded);
+  }
+
+  Future<void> _disposeStreamsAndSubscriptions() async {
+    await _onAudioEnabledStreamController.close();
+    await _onVideoEnabledStreamController.close();
+    for (var streamSubscription in streamSubscriptions) {
+      await streamSubscription.cancel();
+    }
+  }
+
+  void _onAudioTrackDisabled(RemoteAudioTrackEvent event) {
+    debugPrint(
+        'ConferenceRoom._onAudioTrackDisabled(), ${event.remoteParticipant.sid}, ${event.remoteAudioTrackPublication.trackSid}, isEnabled: ${event.remoteAudioTrackPublication.isTrackEnabled}');
+    _setRemoteAudioEnabled(event);
+  }
+
+  void _onAudioTrackEnabled(RemoteAudioTrackEvent event) {
+    debugPrint(
+        'ConferenceRoom._onAudioTrackEnabled(), ${event.remoteParticipant.sid}, ${event.remoteAudioTrackPublication.trackSid}, isEnabled: ${event.remoteAudioTrackPublication.isTrackEnabled}');
+    _setRemoteAudioEnabled(event);
+  }
+
+  void _onVideoTrackDisabled(RemoteVideoTrackEvent event) {
+    debugPrint(
+        'ConferenceRoom._onVideoTrackDisabled(), ${event.remoteParticipant.sid}, ${event.remoteVideoTrackPublication.trackSid}, isEnabled: ${event.remoteVideoTrackPublication.isTrackEnabled}');
+    _setRemoteVideoEnabled(event);
+  }
+
+  void _onVideoTrackEnabled(RemoteVideoTrackEvent event) {
+    debugPrint(
+        'ConferenceRoom._onVideoTrackEnabled(), ${event.remoteParticipant.sid}, ${event.remoteVideoTrackPublication.trackSid}, isEnabled: ${event.remoteVideoTrackPublication.isTrackEnabled}');
+    _setRemoteVideoEnabled(event);
   }
 
   void _onConnectFailure(RoomConnectFailureEvent event) {

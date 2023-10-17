@@ -185,6 +185,15 @@ mixin _$ConferenceState on ConferenceStateBase, Store {
     return _$disconnectAsyncAction.run(() => super.disconnect());
   }
 
+  late final _$toggleVideoEnabledAsyncAction =
+      AsyncAction('ConferenceStateBase.toggleVideoEnabled', context: context);
+
+  @override
+  Future<void> toggleVideoEnabled() {
+    return _$toggleVideoEnabledAsyncAction
+        .run(() => super.toggleVideoEnabled());
+  }
+
   late final _$ConferenceStateBaseActionController =
       ActionController(name: 'ConferenceStateBase', context: context);
 
@@ -212,11 +221,20 @@ mixin _$ConferenceState on ConferenceStateBase, Store {
 
   @override
   ParticipantWidget _buildParticipant(
-      {required Widget child, required String? id}) {
+      {required Widget child,
+      required String? id,
+      required bool audioEnabled,
+      required bool videoEnabled,
+      RemoteParticipant? remoteParticipant}) {
     final _$actionInfo = _$ConferenceStateBaseActionController.startAction(
         name: 'ConferenceStateBase._buildParticipant');
     try {
-      return super._buildParticipant(child: child, id: id);
+      return super._buildParticipant(
+          child: child,
+          id: id,
+          audioEnabled: audioEnabled,
+          videoEnabled: videoEnabled,
+          remoteParticipant: remoteParticipant);
     } finally {
       _$ConferenceStateBaseActionController.endAction(_$actionInfo);
     }

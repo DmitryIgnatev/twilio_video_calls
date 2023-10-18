@@ -10,7 +10,12 @@ dependencies:
     sdk: flutter
 
   # Twilio video for Flutter
-  twilio_programmable_video: ^1.1.1
+  #twilio_programmable_video: 1.1.1
+  twilio_programmable_video:
+    git:
+      url: https://gitlab.com/DmitryIgnatev/programmable-video.git
+      ref: fix/android_dispose_video
+      path: programmable_video/
 
   # Send http request
   http: ^1.1.0

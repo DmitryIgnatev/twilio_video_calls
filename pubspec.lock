@@ -760,10 +760,11 @@ packages:
   twilio_programmable_video:
     dependency: "direct main"
     description:
-      name: twilio_programmable_video
-      sha256: "951140cdbc0e0631c872443125b13e473e5775c33bd826de56c9e63ba2f15761"
-      url: "https://pub.dev"
-    source: hosted
+      path: programmable_video
+      ref: "fix/android_dispose_video"
+      resolved-ref: f7fc6b3e7cc712ad17fe89a1d63d2780fd4d7538
+      url: "https://gitlab.com/DmitryIgnatev/programmable-video.git"
+    source: git
     version: "1.1.1"
   twilio_programmable_video_platform_interface:
     dependency: transitive

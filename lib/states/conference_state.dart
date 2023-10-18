@@ -49,22 +49,19 @@ abstract class ConferenceStateBase with Store {
   @observable
   bool isMicrophoneOn = true;
 
-  final StreamController<bool> _onVideoEnabledStreamController =
+  @observable
+  bool isCameraOn = true;
+
+  StreamController<bool> _onVideoEnabledStreamController =
       StreamController<bool>.broadcast();
-  final StreamController<bool> _onAudioEnabledStreamController =
+  StreamController<bool> _onAudioEnabledStreamController =
       StreamController<bool>.broadcast();
 
-  final List<ParticipantBuffer> _participantBuffer = [];
+ final List<ParticipantBuffer> _participantBuffer = [];
 
   @action
   void setMode(ConferenceMode value) {
     mode = value;
-  }
-
-  @action
-  void changeMicrophoneStatus() {
-    debugPrint('[ APPDEBUG ] isMicropfoneOn = $isMicrophoneOn');
-    isMicrophoneOn = !isMicrophoneOn;
   }
 
   @action
@@ -86,6 +83,11 @@ abstract class ConferenceStateBase with Store {
 
   @action
   connect() async {
+    if (_onVideoEnabledStreamController.isClosed ||
+        _onAudioEnabledStreamController.isClosed) {
+      _onVideoEnabledStreamController = StreamController<bool>.broadcast();
+      _onAudioEnabledStreamController = StreamController<bool>.broadcast();
+    }
     setMode(ConferenceMode.conferenceInitial);
     debugPrint('[ APPDEBUG ] ConferenceRoom.connect()');
     try {
@@ -134,10 +136,17 @@ abstract class ConferenceStateBase with Store {
   Future<void> disconnect() async {
     debugPrint('[ APPDEBUG ] ConferenceRoom.disconnect()');
     if (_room != null) {
-      await _room!.dispose();
       await _room!.disconnect();
+      await _room!.dispose();
       await TwilioProgrammableVideo.disableAudioSettings();
       _disposeStreamsAndSubscriptions();
+      _cameraCapturer = null;
+      _room = null;
+      trackId = null;
+      participantsList.clear();
+      _participantBuffer.clear();
+      isMicrophoneOn = true;
+      isCameraOn = true;
     }
   }
 
@@ -234,7 +243,7 @@ abstract class ConferenceStateBase with Store {
         _setRemoteAudioEnabled(event);
       }
     } else {
-      final bufferedParticipant = _participantBuffer.firstWhereOrNull(
+        final bufferedParticipant = _participantBuffer.firstWhereOrNull(
         (ParticipantBuffer participant) =>
             participant.id == event.remoteParticipant.sid,
       );
@@ -294,6 +303,8 @@ abstract class ConferenceStateBase with Store {
     debugPrint(
         'ConferenceRoom.toggleVideoEnabled() => ${localVideoTrack.isEnabled}');
     _onVideoEnabledStreamController.add(localVideoTrack.isEnabled);
+
+    isCameraOn = localVideoTrack.isEnabled;
   }
 
   @action
@@ -317,6 +328,8 @@ abstract class ConferenceStateBase with Store {
     debugPrint(
         'ConferenceRoom.toggleAudioEnabled() => ${localAudioTrack.isEnabled}');
     _onAudioEnabledStreamController.add(localAudioTrack.isEnabled);
+
+    isMicrophoneOn = localAudioTrack.isEnabled;
   }
 
   void _setRemoteAudioEnabled(RemoteAudioTrackEvent event) {

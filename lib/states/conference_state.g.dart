@@ -169,6 +169,22 @@ mixin _$ConferenceState on ConferenceStateBase, Store {
     });
   }
 
+  late final _$isCameraOnAtom =
+      Atom(name: 'ConferenceStateBase.isCameraOn', context: context);
+
+  @override
+  bool get isCameraOn {
+    _$isCameraOnAtom.reportRead();
+    return super.isCameraOn;
+  }
+
+  @override
+  set isCameraOn(bool value) {
+    _$isCameraOnAtom.reportWrite(value, super.isCameraOn, () {
+      super.isCameraOn = value;
+    });
+  }
+
   late final _$connectAsyncAction =
       AsyncAction('ConferenceStateBase.connect', context: context);
 
@@ -212,17 +228,6 @@ mixin _$ConferenceState on ConferenceStateBase, Store {
         name: 'ConferenceStateBase.setMode');
     try {
       return super.setMode(value);
-    } finally {
-      _$ConferenceStateBaseActionController.endAction(_$actionInfo);
-    }
-  }
-
-  @override
-  void changeMicrophoneStatus() {
-    final _$actionInfo = _$ConferenceStateBaseActionController.startAction(
-        name: 'ConferenceStateBase.changeMicrophoneStatus');
-    try {
-      return super.changeMicrophoneStatus();
     } finally {
       _$ConferenceStateBaseActionController.endAction(_$actionInfo);
     }
@@ -325,7 +330,8 @@ participantsList: ${participantsList},
 trackId: ${trackId},
 streamSubscriptions: ${streamSubscriptions},
 mode: ${mode},
-isMicrophoneOn: ${isMicrophoneOn}
+isMicrophoneOn: ${isMicrophoneOn},
+isCameraOn: ${isCameraOn}
     ''';
   }
 }

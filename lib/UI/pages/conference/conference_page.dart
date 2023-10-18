@@ -49,12 +49,13 @@ class ConferencePage extends StatelessWidget {
                           ),
                           onPressed: () {
                             conferenceState.toggleAudioEnabled();
-                            conferenceState.changeMicrophoneStatus();
                           },
                         ),
                         IconButton(
-                          icon: const Icon(
-                            Icons.video_camera_front,
+                          icon: Icon(
+                            conferenceState.isCameraOn
+                                ? Icons.videocam
+                                : Icons.videocam_off,
                             color: Colors.white,
                           ),
                           onPressed: () async {

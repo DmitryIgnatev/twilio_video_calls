@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:twilio_programmable_video/twilio_programmable_video.dart';
 import 'package:twilio_video_calls/models/participant_buffer.dart';
 import 'package:twilio_video_calls/models/participant_widget.dart';
-import 'package:twilio_video_calls/UI/components/noise_box.dart';
 import 'package:uuid/uuid.dart';
 part 'conference_state.g.dart'; //This will automatically generated after: flutter pub run build_runner build
 
@@ -14,10 +13,10 @@ part 'conference_state.g.dart'; //This will automatically generated after: flutt
 class ConferenceState = ConferenceStateBase with _$ConferenceState;
 
 enum ConferenceMode {
-  /// Изначальное состояние
+  /// Initial State
   conferenceInitial,
 
-  /// Состояние, когда загружена конференция
+  /// State, when conference is loaded
   conferenceLoaded,
 }
 
@@ -34,7 +33,7 @@ abstract class ConferenceStateBase with Store {
       ObservableList<ParticipantWidget>();
 
   @observable
-  VideoCapturer? _cameraCapturer;
+  CameraCapturer? _cameraCapturer;
   @observable
   Room? _room;
   @observable
@@ -57,13 +56,15 @@ abstract class ConferenceStateBase with Store {
   StreamController<bool> _onAudioEnabledStreamController =
       StreamController<bool>.broadcast();
 
- final List<ParticipantBuffer> _participantBuffer = [];
+  final List<ParticipantBuffer> _participantBuffer = [];
 
+  //set conference mode
   @action
   void setMode(ConferenceMode value) {
     mode = value;
   }
 
+  //build participant widget
   @action
   ParticipantWidget _buildParticipant({
     required Widget child,
@@ -83,6 +84,8 @@ abstract class ConferenceStateBase with Store {
 
   @action
   connect() async {
+    // when we are reconnect to the room, we must reinitialize video
+    // and audio enable streams
     if (_onVideoEnabledStreamController.isClosed ||
         _onAudioEnabledStreamController.isClosed) {
       _onVideoEnabledStreamController = StreamController<bool>.broadcast();
@@ -90,6 +93,7 @@ abstract class ConferenceStateBase with Store {
     }
     setMode(ConferenceMode.conferenceInitial);
     debugPrint('[ APPDEBUG ] ConferenceRoom.connect()');
+
     try {
       await TwilioProgrammableVideo.setAudioSettings(
           speakerphoneEnabled: true, bluetoothPreferred: false);
@@ -118,7 +122,9 @@ abstract class ConferenceStateBase with Store {
         enableDominantSpeaker: true,
       );
 
+      //connect to the room with our connect options
       _room = await TwilioProgrammableVideo.connect(connectOptions);
+      // listen conference statuses
       if (_room != null) {
         streamSubscriptions.add(_room!.onConnected.listen(_onConnected));
         streamSubscriptions.add(_room!.onDisconnected.listen(_onDisconnected));
@@ -132,6 +138,8 @@ abstract class ConferenceStateBase with Store {
     }
   }
 
+  // disconnect from the room, reinitialize conference state to initial values
+  // dispose streams and subscriptions
   @action
   Future<void> disconnect() async {
     debugPrint('[ APPDEBUG ] ConferenceRoom.disconnect()');
@@ -169,9 +177,7 @@ abstract class ConferenceStateBase with Store {
 
     // Only add ourselves when connected for the first time too.
     participantsList.add(_buildParticipant(
-      child: (localParticipant.localVideoTracks.isNotEmpty)
-          ? localParticipant.localVideoTracks[0].localVideoTrack.widget()
-          : const NoiseBox(),
+      child: localParticipant.localVideoTracks[0].localVideoTrack.widget(),
       id: identity,
       audioEnabled: true,
       videoEnabled:
@@ -243,7 +249,7 @@ abstract class ConferenceStateBase with Store {
         _setRemoteAudioEnabled(event);
       }
     } else {
-        final bufferedParticipant = _participantBuffer.firstWhereOrNull(
+      final bufferedParticipant = _participantBuffer.firstWhereOrNull(
         (ParticipantBuffer participant) =>
             participant.id == event.remoteParticipant.sid,
       );
@@ -305,6 +311,23 @@ abstract class ConferenceStateBase with Store {
     _onVideoEnabledStreamController.add(localVideoTrack.isEnabled);
 
     isCameraOn = localVideoTrack.isEnabled;
+  }
+
+  Future<void> switchCamera() async {
+    debugPrint('ConferenceRoom.switchCamera()');
+    final sources = await CameraSource.getSources();
+    if (sources.length > 1) {
+      final source = sources.firstWhere((source) {
+        if (_cameraCapturer!.source!.isFrontFacing) {
+          return source.isBackFacing;
+        }
+        return source.isFrontFacing;
+      });
+
+      await _cameraCapturer!.switchCamera(source);
+    } else if (sources.isNotEmpty) {
+      await _cameraCapturer!.switchCamera(sources.first);
+    }
   }
 
   @action

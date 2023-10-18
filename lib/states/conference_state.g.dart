@@ -77,13 +77,13 @@ mixin _$ConferenceState on ConferenceStateBase, Store {
       Atom(name: 'ConferenceStateBase._cameraCapturer', context: context);
 
   @override
-  VideoCapturer? get _cameraCapturer {
+  CameraCapturer? get _cameraCapturer {
     _$_cameraCapturerAtom.reportRead();
     return super._cameraCapturer;
   }
 
   @override
-  set _cameraCapturer(VideoCapturer? value) {
+  set _cameraCapturer(CameraCapturer? value) {
     _$_cameraCapturerAtom.reportWrite(value, super._cameraCapturer, () {
       super._cameraCapturer = value;
     });

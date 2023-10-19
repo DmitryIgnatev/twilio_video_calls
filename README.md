@@ -1,16 +1,13 @@
-# twilio_video_calls
+# Twilio video calls
 
-A new Flutter project.
+A simple example of how video conferencing works with twilio_programmable_video.
 
-## Getting Started
+## Useful links
 
-This project is a starting point for a Flutter application.
+### Create a Chat Room App with Twilio Video and Flutter / BLoC:
 
-A few resources to get you started if this is your first Flutter project:
+https://www.twilio.com/blog/create-chat-room-app-twilio-video-flutter-bloc
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### Official example of how Twilio and Flutter work 
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+https://gitlab.com/twilio-flutter/programmable-video/-/tree/master/programmable_video/example

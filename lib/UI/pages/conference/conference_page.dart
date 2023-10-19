@@ -14,6 +14,7 @@ class ConferencePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       backgroundColor: Colors.black,
       body: Observer(builder: (_) {
         debugPrint("\x1B[33mSTATE IS ${conferenceState.mode}\x1B[0m");

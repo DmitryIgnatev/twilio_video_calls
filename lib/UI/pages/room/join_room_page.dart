@@ -1,16 +1,31 @@
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:twilio_video_calls/UI/pages/conference/conference_page.dart';
 import 'package:flutter/material.dart';
+import 'package:twilio_video_calls/services/permission_request.dart';
 import 'package:twilio_video_calls/states/join_room_state.dart';
 import 'package:twilio_video_calls/utils/di.dart';
 import 'package:twilio_video_calls/states/conference_state.dart';
 
-class JoinRoomPage extends StatelessWidget {
+class JoinRoomPage extends StatefulWidget {
+
+  const JoinRoomPage({super.key});
+
+  @override
+  State<JoinRoomPage> createState() => _JoinRoomPageState();
+}
+
+class _JoinRoomPageState extends State<JoinRoomPage> {
   final conferenceState = serviceLocator<ConferenceState>();
+
   final joinRoomState = serviceLocator<JoinRoomState>();
+
   final TextEditingController _nameController = TextEditingController();
 
-  JoinRoomPage({super.key});
+  @override
+  void initState() {
+    super.initState();
+    PermissionRequest.requestBluetoothConnect();
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -58,8 +73,6 @@ class JoinRoomPage extends StatelessWidget {
                                           MaterialPageRoute<ConferencePage>(
                                               fullscreenDialog: true,
                                               builder: (BuildContext context) {
-                                                conferenceState.name =
-                                                    joinRoomState.name;
                                                 conferenceState.identity =
                                                     joinRoomState.identity;
                                                 conferenceState.token =

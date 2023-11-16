@@ -22,8 +22,6 @@ enum ConferenceMode {
 
 abstract class ConferenceStateBase with Store {
   @observable
-  String name = "";
-  @observable
   String token = "";
   @observable
   String identity = "";
@@ -34,7 +32,7 @@ abstract class ConferenceStateBase with Store {
 
   @observable
   CameraCapturer? _cameraCapturer;
-  @observable
+
   Room? _room;
   @observable
   String? trackId;
@@ -104,9 +102,9 @@ abstract class ConferenceStateBase with Store {
       );
       trackId = const Uuid().v4();
 
+      debugPrint("\x1B[33mToken: $token\x1B[0m");
       var connectOptions = ConnectOptions(
         token,
-        roomName: name,
         preferredAudioCodecs: [OpusCodec()],
         audioTracks: [LocalAudioTrack(isMicrophoneOn, 'audio_track-$trackId')],
         dataTracks: [

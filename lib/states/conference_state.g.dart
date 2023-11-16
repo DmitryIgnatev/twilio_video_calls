@@ -9,22 +9,6 @@ part of 'conference_state.dart';
 // ignore_for_file: non_constant_identifier_names, unnecessary_brace_in_string_interps, unnecessary_lambdas, prefer_expression_function_bodies, lines_longer_than_80_chars, avoid_as, avoid_annotating_with_dynamic, no_leading_underscores_for_local_identifiers
 
 mixin _$ConferenceState on ConferenceStateBase, Store {
-  late final _$nameAtom =
-      Atom(name: 'ConferenceStateBase.name', context: context);
-
-  @override
-  String get name {
-    _$nameAtom.reportRead();
-    return super.name;
-  }
-
-  @override
-  set name(String value) {
-    _$nameAtom.reportWrite(value, super.name, () {
-      super.name = value;
-    });
-  }
-
   late final _$tokenAtom =
       Atom(name: 'ConferenceStateBase.token', context: context);
 
@@ -86,22 +70,6 @@ mixin _$ConferenceState on ConferenceStateBase, Store {
   set _cameraCapturer(CameraCapturer? value) {
     _$_cameraCapturerAtom.reportWrite(value, super._cameraCapturer, () {
       super._cameraCapturer = value;
-    });
-  }
-
-  late final _$_roomAtom =
-      Atom(name: 'ConferenceStateBase._room', context: context);
-
-  @override
-  Room? get _room {
-    _$_roomAtom.reportRead();
-    return super._room;
-  }
-
-  @override
-  set _room(Room? value) {
-    _$_roomAtom.reportWrite(value, super._room, () {
-      super._room = value;
     });
   }
 
@@ -323,7 +291,6 @@ mixin _$ConferenceState on ConferenceStateBase, Store {
   @override
   String toString() {
     return '''
-name: ${name},
 token: ${token},
 identity: ${identity},
 participantsList: ${participantsList},

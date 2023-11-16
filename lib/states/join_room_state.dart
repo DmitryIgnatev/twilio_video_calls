@@ -47,17 +47,15 @@ abstract class JoinRoomStateBase with Store {
   submit() async {
     setMode(JoinRoomMode.roomLoading);
     String? accessToken;
-    String? accessIdentity;
     try {
       if (name.isNotEmpty) {
         final twilioRoomTokenResponse = await backendService.createToken(name);
         accessToken = twilioRoomTokenResponse['accessToken'];
-        accessIdentity = twilioRoomTokenResponse['user'];
       }
 
-      if (accessToken != null && accessIdentity != null) {
+      if (accessToken != null) {
         token = accessToken;
-        identity = accessIdentity;
+        identity = name;
         setMode(JoinRoomMode.roomLoaded);
       } else {
         setMode(JoinRoomMode.roomError);
